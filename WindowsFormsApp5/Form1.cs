@@ -13,9 +13,7 @@ namespace WindowsFormsApp5
 {
     public partial class Form1 : Form
     {
-        public DataTable table;
-        public DataSet dataSet;
-        public string xmlPath;
+        private TodoList todoList;
         ToolStripLabel dateLabel;
         ToolStripLabel timeLabel;
         ToolStripLabel infoLabel;
@@ -23,22 +21,10 @@ namespace WindowsFormsApp5
         public Form1()
         {
             InitializeComponent();
-            table = new DataTable("Main");
-            dataSet = new DataSet();
-            xmlPath = "database.xml";
-            dataSet.ReadXml(xmlPath);
-            if (dataSet.Tables.Count == 0 /*|| dataSet.Tables[0].Rows.Count<2*/)
-            {
-                Table_Reset();
-            }
-            else
-            {
-                table = dataSet.Tables[0];
-                table.AcceptChanges();
-            }
-            dataGridView1.DataSource = table;
+            todoList = new TodoList();
+            dataGridView1.DataSource = todoList.getTable();
             infoLabel = new ToolStripLabel();
-            infoLabel.Text = "Текущие дата и время:";
+            infoLabel.Text = "Current date and time:";
             dateLabel = new ToolStripLabel();
             timeLabel = new ToolStripLabel();
             statusStrip1.Items.Add(infoLabel);
@@ -68,27 +54,17 @@ namespace WindowsFormsApp5
 
         }
 
-        private void tableLayoutPanel1_Paint(object sender, PaintEventArgs e)
-        {
-
-        }
-
         private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.ColumnIndex == 1)
             {
                 DataRow dr;
-                dr = table.Rows[e.RowIndex];
+                dr = todoList.getTable().Rows[e.RowIndex];
 
                 if (dr[1].ToString() != "" && Uri.IsWellFormedUriString(dr[1].ToString(), UriKind.Absolute))
                 {
-                    DialogResult dialogResult = MessageBox.Show("Хотите ли вы открыть данную ссылку во встроенном браузере?", "Открыть?", MessageBoxButtons.YesNoCancel);
+                    DialogResult dialogResult = MessageBox.Show("Do you want to follow this link?", "Open?", MessageBoxButtons.YesNo);
                     if (dialogResult == DialogResult.Yes)
-                    {
-                        Form3 newForm3 = new Form3(dr[1].ToString());
-                        newForm3.Show();
-                    }
-                    else if (dialogResult == DialogResult.No)
                     {
                         ProcessStartInfo sInfo = new ProcessStartInfo(dr[1].ToString());
                         Process.Start(sInfo);
@@ -98,8 +74,8 @@ namespace WindowsFormsApp5
                 else
                 {
                     MessageBox.Show(
-                        "Неверный адрес",
-                        "Ошибка",
+                        "Invalid address",
+                        "Error",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information,
                         MessageBoxDefaultButton.Button1,
@@ -112,12 +88,10 @@ namespace WindowsFormsApp5
 
         private void dataSave()
         {
-            DialogResult dialogResult = MessageBox.Show("Хотите ли вы сохранить таблицу?", "Сохранить?", MessageBoxButtons.YesNo);
+            DialogResult dialogResult = MessageBox.Show("Do you want to save this table?", "Save?", MessageBoxButtons.YesNo);
             if (dialogResult == DialogResult.Yes)
             {
-                dataSet.Tables.Clear();
-                dataSet.Tables.Add(table);
-                dataSet.WriteXml(xmlPath);
+                todoList.saveTable();
             }
             
         }
@@ -127,8 +101,8 @@ namespace WindowsFormsApp5
             if (textBox2.Text.ToString() == "" || textBox1.Text.ToString() == "")
             {
                 MessageBox.Show(
-                    "Вы оставили пустые поля!",
-                    "Ошибка",
+                    "Some fields are empty!",
+                    "Error",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information,
                     MessageBoxDefaultButton.Button1,
@@ -138,8 +112,8 @@ namespace WindowsFormsApp5
             if (!Uri.IsWellFormedUriString(textBox1.Text.ToString(), UriKind.Absolute))
             {
                 MessageBox.Show(
-                     "Неверный адрес!",
-                     "Ошибка",
+                     "Invalid address!",
+                     "Error",
                      MessageBoxButtons.OK,
                      MessageBoxIcon.Information,
                      MessageBoxDefaultButton.Button1,
@@ -147,15 +121,15 @@ namespace WindowsFormsApp5
                 return;
             }
             DataRow dr;
-            dr = table.NewRow();
+            dr = todoList.newRow();
             dr[0] = textBox2.Text.ToString();
             dr[1] = textBox1.Text.ToString();
             dr[2] = dateTimePicker2.Text.ToString();
             dr[3] = dateTimePicker1.Text.ToString();
-            table.Rows.Add(dr);
-            table.AcceptChanges();
+            dr[4] = "Not yet";
+            todoList.setNewRow(dr);
             dataGridView1.DataSource = null;
-            dataGridView1.DataSource = table;
+            dataGridView1.DataSource = todoList.getTable();
         }
 
         private void button3_Click(object sender, EventArgs e)
@@ -165,23 +139,12 @@ namespace WindowsFormsApp5
 
         private void button2_Click(object sender, EventArgs e)
         {
-            Table_Reset();
+            todoList.tableReset();
             dataGridView1.DataSource = null;
-            dataGridView1.DataSource = table;
+            dataGridView1.DataSource = todoList.getTable();
         }
 
-        private void Table_Reset()
-        {
-            table.Rows.Clear();
-            table.Columns.Clear();
-            table.Columns.Add("Задача".ToString());
-            table.Columns.Add("Ссылка".ToString());
-            table.Columns.Add("Дата начала выполнения".ToString());
-            table.Columns.Add("Выполнить до".ToString());
-            table.AcceptChanges();
-            dataSet.Tables.Clear();
-            dataSet.Tables.Add(table);
-        }
+        
 
         private void label1_Click(object sender, EventArgs e)
         {
@@ -217,8 +180,8 @@ namespace WindowsFormsApp5
                     break;
                 }
             }
-            table = (DataTable)dataGridView1.DataSource;
-            table.AcceptChanges();
+            todoList.setTable((DataTable)dataGridView1.DataSource);
+            todoList.getTable().AcceptChanges();
         }
 
         private void сохранитьКакToolStripMenuItem_Click(object sender, EventArgs e)
@@ -231,8 +194,7 @@ namespace WindowsFormsApp5
 
             if (saveFileDialog1.ShowDialog() == DialogResult.OK)
             {
-                xmlPath = saveFileDialog1.FileName.ToString();
-                dataSet.WriteXml(xmlPath);
+                todoList.saveTableAs(saveFileDialog1.FileName.ToString());
             }
         }
 
@@ -245,8 +207,8 @@ namespace WindowsFormsApp5
         private void toolStripButton1_Click(object sender, EventArgs e)
         {
             MessageBox.Show(
-                "Лабораторная работа №6 по дисциплине Визуальное проектирование программ в среде Microsoft Visual Studio",
-                "О программе",
+                "Todo list written in C#",
+                "About program",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information,
                 MessageBoxDefaultButton.Button1);
@@ -263,7 +225,7 @@ namespace WindowsFormsApp5
 
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
-                xmlPath = openFileDialog1.FileName.ToString();
+                todoList.setXmlPath(openFileDialog1.FileName.ToString());
                 openFile();
 
             }
@@ -276,24 +238,43 @@ namespace WindowsFormsApp5
 
         private void openFile()
         {
-            DialogResult dialogResult = MessageBox.Show("Хотите ли вы открыть таблицу и потерять несохранённые данные?", "Открыть?", MessageBoxButtons.YesNo);
+            DialogResult dialogResult = MessageBox.Show("Do you want to open a new table and lose all unsaved data?", "Open?", MessageBoxButtons.YesNo);
             if (dialogResult == DialogResult.Yes)
             {
-                table = new DataTable("Main");
-                dataSet = new DataSet();
-                dataSet.ReadXml(xmlPath);
-                if (dataSet.Tables.Count == 0 /*|| dataSet.Tables[0].Rows.Count<2*/)
+                todoList.openNewTable();
+                dataGridView1.DataSource = null;
+                dataGridView1.DataSource = todoList.getTable();
+            }
+        }
+
+        private void label4_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            foreach (DataGridViewTextBoxCell item in this.dataGridView1.SelectedCells)
+            {
+                if (item.RowIndex >= 0)
                 {
-                    Table_Reset();
+                    DialogResult dialogResult = MessageBox.Show("Did you complete this task on time?", "Complete?", MessageBoxButtons.YesNoCancel);
+                    if (dialogResult == DialogResult.Yes)
+                    {
+                        dataGridView1.Rows[item.RowIndex].Cells[4].Value = "Completed";
+                    }
+                    if (dialogResult == DialogResult.No)
+                    {
+                        dataGridView1.Rows[item.RowIndex].Cells[4].Value = "Failed";
+                    }
                 }
                 else
                 {
-                    table = dataSet.Tables[0];
-                    table.AcceptChanges();
+                    break;
                 }
-                dataGridView1.DataSource = null;
-                dataGridView1.DataSource = table;
             }
+            todoList.setTable((DataTable)dataGridView1.DataSource);
+            todoList.getTable().AcceptChanges();
         }
     }
 }
